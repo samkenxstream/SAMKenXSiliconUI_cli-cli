@@ -347,8 +347,8 @@ func Test_editRun(t *testing.T) {
 					},
 					Projects: shared.EditableProjects{
 						EditableSlice: shared.EditableSlice{
-							Add:    []string{"Cleanup", "RoadmapV2"},
-							Remove: []string{"CleanupV2", "Roadmap"},
+							Add:    []string{"Cleanup", "CleanupV2"},
+							Remove: []string{"Roadmap", "RoadmapV2"},
 							Edited: true,
 						},
 					},
@@ -401,8 +401,8 @@ func Test_editRun(t *testing.T) {
 					},
 					Projects: shared.EditableProjects{
 						EditableSlice: shared.EditableSlice{
-							Add:    []string{"Cleanup", "RoadmapV2"},
-							Remove: []string{"CleanupV2", "Roadmap"},
+							Add:    []string{"Cleanup", "CleanupV2"},
+							Remove: []string{"Roadmap", "RoadmapV2"},
 							Edited: true,
 						},
 					},
@@ -464,22 +464,21 @@ func Test_editRun(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		ios, _, stdout, stderr := iostreams.Test()
-		ios.SetStdoutTTY(true)
-		ios.SetStdinTTY(true)
-		ios.SetStderrTTY(true)
-
-		reg := &httpmock.Registry{}
-		defer reg.Verify(t)
-		tt.httpStubs(t, reg)
-
-		httpClient := func() (*http.Client, error) { return &http.Client{Transport: reg}, nil }
-
-		tt.input.IO = ios
-		tt.input.HttpClient = httpClient
-
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println(tt.name)
+			ios, _, stdout, stderr := iostreams.Test()
+			ios.SetStdoutTTY(true)
+			ios.SetStdinTTY(true)
+			ios.SetStderrTTY(true)
+
+			reg := &httpmock.Registry{}
+			defer reg.Verify(t)
+			tt.httpStubs(t, reg)
+
+			httpClient := func() (*http.Client, error) { return &http.Client{Transport: reg}, nil }
+
+			tt.input.IO = ios
+			tt.input.HttpClient = httpClient
+
 			err := editRun(tt.input)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.stdout, stdout.String())
@@ -562,6 +561,16 @@ func mockRepoMetadata(_ *testing.T, reg *httpmock.Registry, skipReviewers bool) 
 		{ "data": { "organization": { "projectsV2": {
 			"nodes": [
 				{ "title": "TriageV2", "id": "TRIAGEV2ID" }
+			],
+			"pageInfo": { "hasNextPage": false }
+		} } } }
+		`))
+	reg.Register(
+		httpmock.GraphQL(`query UserProjectV2List\b`),
+		httpmock.StringResponse(`
+		{ "data": { "viewer": { "projectsV2": {
+			"nodes": [
+				{ "title": "MonalisaV2", "id": "MONALISAV2ID" }
 			],
 			"pageInfo": { "hasNextPage": false }
 		} } } }
@@ -655,9 +664,7 @@ func (s testSurveyor) EditFields(e *shared.Editable, _ string) error {
 	e.Labels.Value = []string{"feature", "TODO", "bug"}
 	e.Labels.Add = []string{"feature", "TODO", "bug"}
 	e.Labels.Remove = []string{"docs"}
-	e.Projects.Value = []string{"Cleanup", "RoadmapV2"}
-	e.Projects.Add = []string{"Cleanup", "RoadmapV2"}
-	e.Projects.Remove = []string{"CleanupV2", "Roadmap"}
+	e.Projects.Value = []string{"Cleanup", "CleanupV2"}
 	e.Milestone.Value = "GA"
 	return nil
 }
