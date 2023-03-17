@@ -171,15 +171,17 @@ func (a *App) SSH(ctx context.Context, sshArgs []string, opts sshOptions) (err e
 	}
 	defer safeClose(session, &err)
 
-	a.StartProgressIndicatorWithLabel("Fetching SSH Details")
-	invoker, err := rpc.CreateInvoker(ctx, session)
-	if err != nil {
-		return err
-	}
-	defer safeClose(invoker, &err)
+	remoteSSHServerPort, sshUser := 0, ""
+	err = a.RunWithProgress("Fetching SSH Details", func() (err error) {
+		invoker, err := rpc.CreateInvoker(ctx, session)
+		if err != nil {
+			return
+		}
+		defer safeClose(invoker, &err)
 
-	remoteSSHServerPort, sshUser, err := invoker.StartSSHServerWithOptions(ctx, startSSHOptions)
-	a.StopProgressIndicator()
+		remoteSSHServerPort, sshUser, err = invoker.StartSSHServerWithOptions(ctx, startSSHOptions)
+		return
+	})
 	if err != nil {
 		return fmt.Errorf("error getting ssh server details: %w", err)
 	}
@@ -472,9 +474,10 @@ func (a *App) printOpenSSHConfig(ctx context.Context, opts sshOptions) (err erro
 
 	var csList []*api.Codespace
 	if opts.selector.codespaceName == "" {
-		a.StartProgressIndicatorWithLabel("Fetching codespaces")
-		csList, err = a.apiClient.ListCodespaces(ctx, api.ListCodespacesOptions{})
-		a.StopProgressIndicator()
+		err = a.RunWithProgress("Fetching codespaces", func() (err error) {
+			csList, err = a.apiClient.ListCodespaces(ctx, api.ListCodespacesOptions{})
+			return
+		})
 	} else {
 		var codespace *api.Codespace
 		codespace, err = opts.selector.Select(ctx)
